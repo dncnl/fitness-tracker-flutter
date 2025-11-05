@@ -179,10 +179,10 @@ class _HomeScreenState extends State<HomeScreen> {
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // --- NEW: App Logo added here ---
+            // Ensayo Logo
             Image.asset(
               'assets/ensayo_black.png',
-              height: 25, // Set a fixed height for the logo
+              height: 25,
             ),
             const SizedBox(height: 8), // Spacing between logo and text
             Text("Welcome Back", style: GoogleFonts.poppins(color: Colors.grey.shade600, fontSize: 16)),
