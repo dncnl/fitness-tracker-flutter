@@ -7,7 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'login_screen.dart';
 
-// The main dashboard screen. A StatefulWidget because its data changes.
+// The main dashboard screen. Stateful - Data Changes
 class HomeScreen extends StatefulWidget {
   final String userName;
   const HomeScreen({super.key, required this.userName});
@@ -18,9 +18,9 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   Map<String, Map<String, double>> _activityData = {
-    "2023-10-01": {"weight": 70.0},
-    "2023-10-10": {"weight": 69.5},
-    "2023-10-20": {"weight": 68.5},
+    "2025-10-01": {"weight": 70.0},
+    "2025-10-10": {"weight": 69.5},
+    "2025-10-20": {"weight": 68.5},
   };
   String _selectedMetric = 'steps';
   List<DateTime> _currentWeekDays = [];
