@@ -105,15 +105,23 @@ class _HomeScreenState extends State<HomeScreen> {
               child: const Text("Save"),
               onPressed: () {
                 final todayKey = _formatDate(DateTime.now());
-                final steps = double.tryParse(stepsController.text) ?? 0;
-                final calories = double.tryParse(caloriesController.text) ?? 0;
+                // tryParse returns null if the text is not a valid number.
+                final newSteps = double.tryParse(stepsController.text);
+                final newCalories = double.tryParse(caloriesController.text);
 
                 setState(() {
+                  // Check if there's an entry for today before trying to update it.
                   if (!_activityData.containsKey(todayKey)) {
                     _activityData[todayKey] = {'steps': 0, 'calories': 0};
                   }
-                  _activityData[todayKey]!['steps'] = (_activityData[todayKey]!['steps'] ?? 0) + steps;
-                  _activityData[todayKey]!['calories'] = (_activityData[todayKey]!['calories'] ?? 0) + calories;
+
+                  // Only replace the value if the user entered a new valid number.
+                  if (newSteps != null) {
+                    _activityData[todayKey]!['steps'] = newSteps;
+                  }
+                  if (newCalories != null) {
+                    _activityData[todayKey]!['calories'] = newCalories;
+                  }
                 });
 
                 _saveActivityData();
