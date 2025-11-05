@@ -22,6 +22,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Map<String, Map<String, double>> _activityData = {};
   String _selectedMetric = 'steps';
   List<DateTime> _currentWeekDays = [];
+  final List<double> sleepData = [7, 6.5, 8, 7.2, 6, 7.5, 8];
 
   @override
   void initState() {
@@ -71,6 +72,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void _showLogDialog() {
     final stepsController = TextEditingController();
     final caloriesController = TextEditingController();
+    final sleepController = TextEditingController();
 
     showDialog(
       context: context,
@@ -89,6 +91,8 @@ class _HomeScreenState extends State<HomeScreen> {
               _buildStyledTextField(controller: stepsController, hintText: "Steps"),
               const SizedBox(height: 16),
               _buildStyledTextField(controller: caloriesController, hintText: "Calories Burned"),
+              const SizedBox(height: 16),
+              _buildStyledTextField(controller: sleepController, hintText: "Sleep Hours"),
             ],
           ),
           actions: [
@@ -107,14 +111,22 @@ class _HomeScreenState extends State<HomeScreen> {
                 final todayKey = _formatDate(DateTime.now());
                 final steps = double.tryParse(stepsController.text) ?? 0;
                 final calories = double.tryParse(caloriesController.text) ?? 0;
+                final sleep = double.tryParse(sleepController.text) ?? 0; // <--- PASTE HERE
 
                 setState(() {
                   if (!_activityData.containsKey(todayKey)) {
-                    _activityData[todayKey] = {'steps': 0, 'calories': 0};
+                    if (_activityData.length >= 7) {
+                      final oldestKey = _activityData.keys.toList()..sort();
+                      _activityData.remove(oldestKey.first); // remove oldest day
+                    }
+                    _activityData[todayKey] = {'steps': 0, 'calories': 0, 'sleep': 0};
                   }
+
                   _activityData[todayKey]!['steps'] = (_activityData[todayKey]!['steps'] ?? 0) + steps;
                   _activityData[todayKey]!['calories'] = (_activityData[todayKey]!['calories'] ?? 0) + calories;
+                  _activityData[todayKey]!['sleep'] = (_activityData[todayKey]!['sleep'] ?? 0) + sleep;
                 });
+
 
                 _saveActivityData();
                 Navigator.of(context).pop();
@@ -220,59 +232,138 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text("Weekly Dashboard", style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 18)),
+          Text(
+            "Weekly Dashboard",
+            style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 18),
+          ),
           const SizedBox(height: 16),
+
+          // --- Toggle Buttons ---
           ToggleButtons(
-            isSelected: [_selectedMetric == 'steps', _selectedMetric == 'calories'],
+            isSelected: [
+              _selectedMetric == 'steps',
+              _selectedMetric == 'calories',
+              _selectedMetric == 'sleep'
+            ],
             onPressed: (index) {
               setState(() {
-                _selectedMetric = (index == 0) ? 'steps' : 'calories';
+                _selectedMetric = index == 0
+                    ? 'steps'
+                    : index == 1
+                    ? 'calories'
+                    : 'sleep';
               });
             },
             borderRadius: BorderRadius.circular(10),
             selectedColor: Colors.white,
             fillColor: const Color(0xFF5D82F8),
             splashColor: const Color(0xFF5D82F8).withOpacity(0.2),
-            children: const [Padding(padding: EdgeInsets.symmetric(horizontal: 16), child: Text("Steps")), Padding(padding: EdgeInsets.symmetric(horizontal: 16), child: Text("Calories"))],
+            children: const [
+              Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16),
+                  child: Text("Steps")),
+              Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16),
+                  child: Text("Calories")),
+              Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16),
+                  child: Text("Sleep")),
+            ],
           ),
+
           const SizedBox(height: 24),
-          SizedBox(
-            height: 180,
-            child: BarChart(
-              BarChartData(
-                gridData: FlGridData(show: false),
-                borderData: FlBorderData(show: false),
-                titlesData: FlTitlesData(
-                  rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 40, interval: _selectedMetric == 'steps' ? 5000 : 500)),
-                  bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      getTitlesWidget: (value, meta) {
-                        const dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-                        return Text(dayLabels[value.toInt()], style: GoogleFonts.poppins(fontSize: 10));
-                      },
+
+          // --- Bar Chart ---
+          Builder(builder: (context) {
+            // Ensure all 7 days exist in _activityData
+            for (var date in _currentWeekDays) {
+              final key = _formatDate(date);
+              if (!_activityData.containsKey(key)) {
+                _activityData[key] = {'steps': 0, 'calories': 0, 'sleep': 0};
+              }
+            }
+
+            // Calculate maxY
+            double maxY = 0;
+            for (var date in _currentWeekDays) {
+              final key = _formatDate(date);
+              final value = _activityData[key]?[_selectedMetric] ?? 0;
+              if (value > maxY) maxY = value;
+            }
+            if (_selectedMetric == 'steps' && maxY < 5000) maxY = 5000;
+            if (_selectedMetric == 'calories' && maxY < 500) maxY = 500;
+            if (_selectedMetric == 'sleep' && maxY == 0) maxY = 8;
+
+            // Sort dates (Mon → Sun)
+            final sortedDates = _currentWeekDays.map((d) => _formatDate(d)).toList();
+
+            return SizedBox(
+              height: 180,
+              child: BarChart(
+                BarChartData(
+                  gridData: FlGridData(show: false),
+                  borderData: FlBorderData(show: false),
+                  titlesData: FlTitlesData(
+                    rightTitles: AxisTitles(
+                        sideTitles: SideTitles(showTitles: false)),
+                    topTitles: AxisTitles(
+                        sideTitles: SideTitles(showTitles: false)),
+                    leftTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        reservedSize: 40,
+                        interval: (maxY / 5).ceilToDouble(),
+                      ),
+                    ),
+                    bottomTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        getTitlesWidget: (value, meta) {
+                          const dayLabels = [
+                            'Mon',
+                            'Tue',
+                            'Wed',
+                            'Thu',
+                            'Fri',
+                            'Sat',
+                            'Sun'
+                          ];
+                          return Text(dayLabels[value.toInt()],
+                              style: GoogleFonts.poppins(fontSize: 10));
+                        },
+                      ),
                     ),
                   ),
+                  barGroups: sortedDates.asMap().entries.map((entry) {
+                    final index = entry.key;
+                    final dateKey = entry.value;
+                    final data = _activityData[dateKey]!;
+
+                    double value = data[_selectedMetric] ?? 0;
+                    Color barColor =
+                    _selectedMetric == 'sleep' ? Colors.blueAccent : const Color(0xFFa1c4fd);
+
+                    return BarChartGroupData(
+                      x: index,
+                      barRods: [
+                        BarChartRodData(
+                          toY: value,
+                          color: barColor,
+                          width: 16,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ],
+                    );
+                  }).toList(),
                 ),
-                barGroups: _currentWeekDays.asMap().entries.map((entry) {
-                  final index = entry.key;
-                  final date = entry.value;
-                  final dateKey = _formatDate(date);
-                  final value = _activityData[dateKey]?[_selectedMetric] ?? 0;
-                  return BarChartGroupData(
-                    x: index,
-                    barRods: [BarChartRodData(toY: value, color: const Color(0xFFa1c4fd), width: 16, borderRadius: BorderRadius.circular(4))],
-                  );
-                }).toList(),
               ),
-            ),
-          ),
+            );
+          }),
         ],
       ),
     );
   }
+
 
   Widget _buildHeartRateCard(BuildContext context) {
     return Container(
