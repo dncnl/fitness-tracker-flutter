@@ -59,7 +59,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final dataString = jsonEncode(_activityData);
     await prefs.setString('activityData', dataString);
   }
-  
+
   Future<void> _logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('userName');
@@ -78,10 +78,10 @@ class _HomeScreenState extends State<HomeScreen> {
       context: context,
       builder: (context) => Theme(
         data: Theme.of(context).copyWith(
-          dialogTheme: DialogThemeData(
-            backgroundColor: Colors.white,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          )
+            dialogTheme: DialogThemeData(
+              backgroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            )
         ),
         child: AlertDialog(
           title: Text("Log Today's Activity", style: GoogleFonts.poppins(fontWeight: FontWeight.bold)),
@@ -97,8 +97,8 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           actions: [
             TextButton(
-              child: Text("Cancel", style: GoogleFonts.poppins(color: Colors.grey)), 
-              onPressed: () => Navigator.of(context).pop()
+                child: Text("Cancel", style: GoogleFonts.poppins(color: Colors.grey)),
+                onPressed: () => Navigator.of(context).pop()
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
@@ -111,22 +111,22 @@ class _HomeScreenState extends State<HomeScreen> {
                 final todayKey = _formatDate(DateTime.now());
                 final steps = double.tryParse(stepsController.text) ?? 0;
                 final calories = double.tryParse(caloriesController.text) ?? 0;
-                final sleep = double.tryParse(sleepController.text) ?? 0; // <--- PASTE HERE
+                final sleep = double.tryParse(sleepController.text) ?? 0;
 
                 setState(() {
-                  if (!_activityData.containsKey(todayKey)) {
-                    if (_activityData.length >= 7) {
-                      final oldestKey = _activityData.keys.toList()..sort();
-                      _activityData.remove(oldestKey.first); // remove oldest day
-                    }
-                    _activityData[todayKey] = {'steps': 0, 'calories': 0, 'sleep': 0};
+                  // Always replace today's values
+                  _activityData[todayKey] = {
+                    'steps': steps,
+                    'calories': calories,
+                    'sleep': sleep,
+                  };
+
+                  // Keep only the last 7 days
+                  if (_activityData.length > 7) {
+                    final oldestKey = _activityData.keys.toList()..sort();
+                    _activityData.remove(oldestKey.first);
                   }
-
-                  _activityData[todayKey]!['steps'] = (_activityData[todayKey]!['steps'] ?? 0) + steps;
-                  _activityData[todayKey]!['calories'] = (_activityData[todayKey]!['calories'] ?? 0) + calories;
-                  _activityData[todayKey]!['sleep'] = (_activityData[todayKey]!['sleep'] ?? 0) + sleep;
                 });
-
 
                 _saveActivityData();
                 Navigator.of(context).pop();
@@ -137,7 +137,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
-  
+
   Widget _buildStyledTextField({required TextEditingController controller, required String hintText}) {
     return TextField(
       controller: controller,
@@ -214,7 +214,7 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(width: 8),
             IconButton(
               icon: const Icon(Icons.logout, size: 28, color: Colors.grey),
-              onPressed: _logout, 
+              onPressed: _logout,
             ),
           ],
         ),
@@ -238,7 +238,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           const SizedBox(height: 16),
 
-          // --- Toggle Buttons ---
+          // Metric toggle buttons
           ToggleButtons(
             isSelected: [
               _selectedMetric == 'steps',
@@ -273,41 +273,66 @@ class _HomeScreenState extends State<HomeScreen> {
 
           const SizedBox(height: 24),
 
-          // --- Bar Chart ---
           Builder(builder: (context) {
-            // Ensure all 7 days exist in _activityData
-            for (var date in _currentWeekDays) {
+            // Build bars only for days with logged data
+            final barGroups = List.generate(_currentWeekDays.length, (i) {
+              final date = _currentWeekDays[i];
               final key = _formatDate(date);
-              if (!_activityData.containsKey(key)) {
-                _activityData[key] = {'steps': 0, 'calories': 0, 'sleep': 0};
-              }
-            }
 
-            // Calculate maxY
-            double maxY = 0;
-            for (var date in _currentWeekDays) {
-              final key = _formatDate(date);
-              final value = _activityData[key]?[_selectedMetric] ?? 0;
-              if (value > maxY) maxY = value;
-            }
+              // Skip days with no data
+              if (!_activityData.containsKey(key)) return BarChartGroupData(x: i, barRods: []);
+
+              double value = _activityData[key]?[_selectedMetric] ?? 0;
+
+              // For sleep, show minimal bar if zero
+              if (_selectedMetric == 'sleep' && value == 0) value = 0.1;
+
+              Color barColor;
+              switch (_selectedMetric) {
+                case 'steps':
+                  barColor = Colors.lightBlue;
+                  break;
+                case 'calories':
+                  barColor = Colors.orangeAccent;
+                  break;
+                case 'sleep':
+                default:
+                  barColor = Colors.blueAccent;
+              }
+
+              return BarChartGroupData(
+                x: i,
+                barRods: [
+                  BarChartRodData(
+                    toY: value,
+                    color: barColor,
+                    width: 16,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ],
+              );
+            });
+
+            // Determine maxY dynamically based on logged data
+            double maxY = _activityData.values
+                .map((data) => data[_selectedMetric] ?? 0)
+                .fold(0, (prev, e) => e > prev ? e : prev);
+
+            // Ensure minimal scale for each metric
             if (_selectedMetric == 'steps' && maxY < 5000) maxY = 5000;
             if (_selectedMetric == 'calories' && maxY < 500) maxY = 500;
-            if (_selectedMetric == 'sleep' && maxY == 0) maxY = 8;
-
-            // Sort dates (Mon → Sun)
-            final sortedDates = _currentWeekDays.map((d) => _formatDate(d)).toList();
+            if (_selectedMetric == 'sleep' && maxY < 8) maxY = 8;
 
             return SizedBox(
               height: 180,
               child: BarChart(
                 BarChartData(
+                  alignment: BarChartAlignment.spaceAround,
                   gridData: FlGridData(show: false),
                   borderData: FlBorderData(show: false),
                   titlesData: FlTitlesData(
-                    rightTitles: AxisTitles(
-                        sideTitles: SideTitles(showTitles: false)),
-                    topTitles: AxisTitles(
-                        sideTitles: SideTitles(showTitles: false)),
+                    rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
                     leftTitles: AxisTitles(
                       sideTitles: SideTitles(
                         showTitles: true,
@@ -319,42 +344,14 @@ class _HomeScreenState extends State<HomeScreen> {
                       sideTitles: SideTitles(
                         showTitles: true,
                         getTitlesWidget: (value, meta) {
-                          const dayLabels = [
-                            'Mon',
-                            'Tue',
-                            'Wed',
-                            'Thu',
-                            'Fri',
-                            'Sat',
-                            'Sun'
-                          ];
-                          return Text(dayLabels[value.toInt()],
-                              style: GoogleFonts.poppins(fontSize: 10));
+                          const dayLabels = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+                          final intIndex = value.toInt().clamp(0,6);
+                          return Text(dayLabels[intIndex], style: GoogleFonts.poppins(fontSize: 10));
                         },
                       ),
                     ),
                   ),
-                  barGroups: sortedDates.asMap().entries.map((entry) {
-                    final index = entry.key;
-                    final dateKey = entry.value;
-                    final data = _activityData[dateKey]!;
-
-                    double value = data[_selectedMetric] ?? 0;
-                    Color barColor =
-                    _selectedMetric == 'sleep' ? Colors.blueAccent : const Color(0xFFa1c4fd);
-
-                    return BarChartGroupData(
-                      x: index,
-                      barRods: [
-                        BarChartRodData(
-                          toY: value,
-                          color: barColor,
-                          width: 16,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                      ],
-                    );
-                  }).toList(),
+                  barGroups: barGroups,
                 ),
               ),
             );
@@ -363,7 +360,6 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
-
 
   Widget _buildHeartRateCard(BuildContext context) {
     return Container(
