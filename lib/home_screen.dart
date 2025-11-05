@@ -59,21 +59,14 @@ class _HomeScreenState extends State<HomeScreen> {
     await prefs.setString('activityData', dataString);
   }
   
-  // --- NEW: Logout Functionality ---
-  /// This function handles the logout process.
   Future<void> _logout() async {
     final prefs = await SharedPreferences.getInstance();
-    // 1. Remove the saved user name from storage.
     await prefs.remove('userName');
-
-    // 2. Navigate back to the LoginScreen.
-    // `pushAndRemoveUntil` is used to clear all the previous screens
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (context) => const LoginScreen()),
-      (Route<dynamic> route) => false, // returns false
+      (Route<dynamic> route) => false,
     );
   }
-
 
   void _showLogDialog() {
     final stepsController = TextEditingController();
@@ -181,11 +174,17 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildHeader(String name) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      crossAxisAlignment: CrossAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.start, // Align to the top
       children: [
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // --- NEW: App Logo added here ---
+            Image.asset(
+              'assets/ensayo_black.png',
+              height: 25, // Set a fixed height for the logo
+            ),
+            const SizedBox(height: 8), // Spacing between logo and text
             Text("Welcome Back", style: GoogleFonts.poppins(color: Colors.grey.shade600, fontSize: 16)),
             Text(name, style: GoogleFonts.poppins(fontWeight: FontWeight.bold, fontSize: 26, color: Colors.black)),
           ],
@@ -201,8 +200,6 @@ class _HomeScreenState extends State<HomeScreen> {
               child: const Icon(Icons.notifications_outlined, size: 28, color: Colors.grey),
             ),
             const SizedBox(width: 8),
-            // --- NEW: Logout Button ---
-            // This IconButton calls the `_logout` function when tapped.
             IconButton(
               icon: const Icon(Icons.logout, size: 28, color: Colors.grey),
               onPressed: _logout, 
