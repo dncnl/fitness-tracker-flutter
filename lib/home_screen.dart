@@ -7,7 +7,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'login_screen.dart'; // Import login_screen to navigate to it.
+import 'login_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final String userName;
@@ -67,12 +67,10 @@ class _HomeScreenState extends State<HomeScreen> {
     await prefs.remove('userName');
 
     // 2. Navigate back to the LoginScreen.
-    // `pushAndRemoveUntil` is used to clear all the previous screens (like HomeScreen)
-    // from the navigation history, so the user can't press the back button to
-    // return to the home screen after logging out.
+    // `pushAndRemoveUntil` is used to clear all the previous screens
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (context) => const LoginScreen()),
-      (Route<dynamic> route) => false, // This predicate always returns false, removing all routes.
+      (Route<dynamic> route) => false, // returns false
     );
   }
 

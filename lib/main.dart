@@ -6,12 +6,12 @@ import 'login_screen.dart';
 
 // main is now async to wait for shared preferences.
 void main() async {
-  // This ensures that widget binding is initialized before you run the app.
+  // Ensures widget binding before running app
   WidgetsFlutterBinding.ensureInitialized();
   
   // Get shared preferences instance.
   final prefs = await SharedPreferences.getInstance();
-  // Try to get the saved user name. It will be null if it's the first time.
+  // Get saved userName
   final String? userName = prefs.getString('userName');
 
   runApp(MyApp(userName: userName));
